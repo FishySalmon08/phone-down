@@ -124,15 +124,6 @@ details ul { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction
     <div class="grid g5" id="groups" role="group" aria-label="Group number"></div>
   </section>
 
-  <section class="step" aria-labelledby="s2">
-    <h2 id="s2"><span class="n">2</span>Round</h2>
-    <div class="row">
-      <label class="small" for="round">Round</label>
-      <select id="round"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
-    </div>
-    <p class="hint">Your presenter will tell you the round number. Leave it on 1 unless they say otherwise.</p>
-  </section>
-
   <button class="act" id="reveal" type="button" disabled>Reveal my card</button>
 
   <div id="result" aria-live="polite"></div>
@@ -150,24 +141,23 @@ details ul { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction
 
 <script>
 (function () {
-  var KEY = "phone-down-v2";
-  // cards remembers the colour this phone drew for each round, so reloading can't re-roll it.
-  var state = { group: null, round: 1, cards: {} };
+  var KEY = "phone-down-v3";
+  // card remembers the colour this phone drew, so reloading can't re-roll it.
+  var state = { group: null, card: null };
   var groupsEl = document.getElementById("groups");
   var revealBtn = document.getElementById("reveal");
   var resultEl = document.getElementById("result");
-  var roundEl = document.getElementById("round");
 
-  // No seats: each phone draws its own card, 50/50 Blue or Red, once per round.
+  // No seats: each phone draws its own card, 50/50 Blue or Red, once.
   function draw() {
     var r;
     try { var a = new Uint32Array(1); crypto.getRandomValues(a); r = a[0] / 4294967296; }
     catch (e) { r = Math.random(); }
     return r < 0.5 ? "blue" : "red";
   }
-  function cardFor(round) {
-    if (state.cards[round] !== "blue" && state.cards[round] !== "red") { state.cards[round] = draw(); save(); }
-    return state.cards[round];
+  function myCard() {
+    if (state.card !== "blue" && state.card !== "red") { state.card = draw(); save(); }
+    return state.card;
   }
 
   function save() {
@@ -178,8 +168,7 @@ details ul { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction
       var s = JSON.parse(localStorage.getItem(KEY) || "null");
       if (!s) return;
       if (s.group >= 1 && s.group <= 10) state.group = s.group;
-      if (s.round >= 1 && s.round <= 5) state.round = s.round;
-      if (s.cards && typeof s.cards === "object") state.cards = s.cards;
+      if (s.card === "blue" || s.card === "red") state.card = s.card;
     } catch (e) {}
   }
 
@@ -201,7 +190,6 @@ details ul { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction
   }
   function sync() {
     syncPressed(groupsEl, state.group);
-    roundEl.value = String(state.round);
     revealBtn.disabled = !state.group;
   }
   function choose(key, v) {
@@ -211,16 +199,16 @@ details ul { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction
   }
 
   function showCard() {
-    var role = cardFor(state.round);
+    var role = myCard();
     var rules = role === "blue"
       ? "<li>Your group loses 1 point every time you use your phone.</li><li>Don't touch it until the end and your group gets +2 points.</li><li>Stay strong when the group chat starts buzzing.</li>"
       : "<li>You are never punished yourself for using your phone.</li><li>But every time you do, your group loses 1 point.</li><li>And you take a small piece of candy from the prize pot, so there's less to win.</li>";
     resultEl.innerHTML =
       '<div class="card flip ' + role + '">' +
-        '<span class="label">Group ' + state.group + ' · Round ' + state.round + '</span>' +
+        '<span class="label">Group ' + state.group + '</span>' +
         '<p class="role">' + (role === "blue" ? "BLUE" : "RED") + '</p>' +
         '<ul>' + rules + '</ul>' +
-        '<span class="meta">This is your card for this round. It stays the same if you reload.</span>' +
+        '<span class="meta">This is your card. It stays the same if you reload.</span>' +
         '<div class="row"><button class="act on-card" id="hide" type="button">Hide my card</button></div>' +
       '</div>';
     document.getElementById("hide").addEventListener("click", hideCard);
@@ -233,7 +221,6 @@ details ul { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction
   }
 
   revealBtn.addEventListener("click", showCard);
-  roundEl.addEventListener("change", function () { state.round = Number(roundEl.value) || 1; resultEl.innerHTML = ""; save(); sync(); });
 
   load();
   buildButtons(groupsEl, 1, 10, "group", "Group");
